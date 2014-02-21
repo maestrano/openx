@@ -10,9 +10,26 @@ require MAESTRANO_ROOT . '/app/init/base.php';
 //-----------------------------------------------
 // Require your app specific files here
 //-----------------------------------------------
-//define('MY_APP_DIR', realpath(MAESTRANO_ROOT . '/../'));
-//require MY_APP_DIR . '/include/some_class_file.php';
-//require MY_APP_DIR . '/config/some_database_config_file.php';
+define('APP_DIR', realpath(MAESTRANO_ROOT . '/../'));
+chdir(APP_DIR);
+
+error_log("======== Just before loading init");
+//require_once APP_DIR . '/init.php';
+require_once APP_DIR . '/lib/pear/PEAR.php';
+define('MAX_PATH', APP_DIR);
+define('OX_PATH', APP_DIR);
+//require_once APP_DIR . '/pre-check.php';
+require_once APP_DIR . '/init-parse.php';
+// require_once APP_DIR . '/variables.php';
+// require_once APP_DIR . '/constants.php';
+function OX_getHostName() { return 'localhost'; }
+
+
+$conf = parseIniFile(APP_DIR . '/var');
+
+//require_once APP_DIR . '/www/admin/lib-sessions.inc.php';
+//require_once APP_DIR . '/lib/OA/Auth.php';
+//var_dump($conf['database']);
 
 //-----------------------------------------------
 // Perform your custom preparation code
@@ -21,12 +38,7 @@ require MAESTRANO_ROOT . '/app/init/base.php';
 // automatically be passed to the MnoSsoUser object
 // for construction
 // e.g:
-// $opts = array();
-// if (!empty($db_name) and !empty($db_user)) {
-//     $conn = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
-//     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
-//     
-//     $opts['db_connection'] = $conn;
-// }
+$opts = array();
+$opts['db_connection'] = new mysqli($conf['database']['host'], $conf['database']['username'], $conf['database']['password'], $conf['database']['name']);
 
 

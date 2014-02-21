@@ -1,5 +1,10 @@
 <?php
 
+class OA_Permission_User {
+  public $aUser = null;
+  public $aAccount = null;
+}
+
 /**
  * Configure App specific behavior for 
  * Maestrano SSO
@@ -37,30 +42,58 @@ class MnoSsoUser extends MnoSsoBaseUser
    *
    * @return boolean whether the user was successfully set in session or not
    */
-  // protected function setInSession()
-  // {
-  //   // First set $conn variable (need global variable?)
-  //   $conn = $this->connection;
-  //   
-  //   $sel1 = $conn->query("SELECT ID,name,lastlogin FROM user WHERE ID = $this->local_id");
-  //   $chk = $sel1->fetch();
-  //   if ($chk["ID"] != "") {
-  //       $now = time();
-  //       
-  //       // Set session
-  //       $this->session['userid'] = $chk['ID'];
-  //       $this->session['username'] = stripslashes($chk['name']);
-  //       $this->session['lastlogin'] = $now;
-  //       
-  //       // Update last login timestamp
-  //       $upd1 = $conn->query("UPDATE user SET lastlogin = '$now' WHERE ID = $this->local_id");
-  //       
-  //       return true;
-  //   } else {
-  //       return false;
-  //   }
-  // }
-  
+  protected function setInSession()
+  {
+    // Cleanup old sessions (older than 10 days)
+    $q = "DELETE FROM ox_session WHERE lastused < ?";
+    $stmt = $this->connection->prepare($q);
+    $stmt->bind_param('s', Array(date("Y-m-d H:i:s", strtotime('-10 days', time())))[0]);
+    $stmt->execute();
+    $stmt->close();
+    
+    
+    // Get user and default account
+    if ($this->local_id) {
+      $q = "SELECT * FROM ox_users WHERE user_id = $this->local_id";
+      $user = $this->connection->query($q)->fetch_assoc();
+      
+      $q = "SELECT * FROM ox_accounts WHERE account_id = {$user['default_account_id']}";
+      $account = $this->connection->query($q)->fetch_assoc();
+    }
+    
+    // Log user in
+    if ($user && $account) {
+      $session = Array();
+      
+      $session['lastused'] = date("Y-m-d H:i:s", time());
+      $session['id'] = md5(uniqid('phpads', 1));
+      
+      $data = new OA_Permission_User;
+      $data->aUser = $user;
+      $data->aAccount = $account;
+      
+      $session['data'] = Array(
+        'user' => $data
+      );
+        
+      // Create session
+      $q = "INSERT INTO ox_session(
+        sessionid,
+        sessiondata,
+        lastused)
+        VALUES(?,?,?)";
+      $stmt = $this->connection->prepare($q);
+      $stmt->bind_param('sss', $session['id'], serialize($session['data']), $session['lastused']);
+      $stmt->execute();
+      $stmt->close();
+        
+      setcookie('sessionID', $session['id'], 0, '/');
+        
+      return true;
+    } else {
+        return false;
+    }
+  }
   
   /**
    * Used by createLocalUserOrDenyAccess to create a local user 
@@ -69,52 +102,111 @@ class MnoSsoUser extends MnoSsoBaseUser
    *
    * @return the ID of the user created, null otherwise
    */
-  // protected function createLocalUser()
-  // {
-  //   $lid = null;
-  //   
-  //   if ($this->accessScope() == 'private') {
-  //     // First set $conn variable (need global variable?)
-  //     $conn = $this->connection;
-  //     
-  //     // Create user
-  //     $lid = $this->connection->query("CREATE BLA.....");
-  //   }
-  //   
-  //   return $lid;
-  // }
+  protected function createLocalUser()
+  {
+    $lid = null;
+    
+    if ($this->accessScope() == 'private') {
+      // First build the user
+      $user = $this->buildLocalUser();
+      
+      // Create user
+      $query = "INSERT INTO ox_users(
+        contact_name,
+        email_address,
+        username,
+        password,
+        language,
+        default_account_id,
+        active,
+        date_created,
+        email_updated) 
+      VALUES(?,?,?,MD5(?),?,?,?,?,?)";
+      $stmt = $this->connection->prepare($query);
+      
+      $stmt->bind_param('sssssiiss', 
+        $user['contact_name'],
+        $user['email_address'],
+        $user['username'],
+        $user['password'],
+        $user['language'],
+        $user['default_account_id'],
+        $user['active'],
+        $user['date_created'],
+        $user['email_updated']
+      );
+      
+      
+      $stmt->execute();
+      $lid = $stmt->insert_id;
+      $stmt->close();
+      var_dump($lid);
+    }
+    
+    return $lid;
+  }
   
   /**
-   * Get the ID of a local user via Maestrano UID lookup
+   * Build a local user for creation
    *
-   * @return a user ID if found, null otherwise
+   * @return hash with user attributes
    */
-  // protected function getLocalIdByUid()
-  // {
-  //   $result = $this->connection->query("SELECT ID FROM user WHERE mno_uid = {$this->connection->quote($this->uid)} LIMIT 1")->fetch();
-  //   
-  //   if ($result && $result['ID']) {
-  //     return $result['ID'];
-  //   }
-  //   
-  //   return null;
-  // }
+  protected function buildLocalUser()
+  {
+    $user_data = Array(
+      'username'           => $this->uid,
+      'email_address'      => $this->email,
+      'contact_name'       => "$this->name $this->surname",
+      'password'           => $this->generatePassword(),
+      'language'           => 'en',
+      'default_account_id' => 1,
+      'active'             => 1,
+      'date_created'       => date("Y-m-d H:i:s", time()),
+      'email_updated'      => date("Y-m-d H:i:s", time()),
+    );
+    
+    return $user_data;
+  }
   
   /**
    * Get the ID of a local user via email lookup
    *
    * @return a user ID if found, null otherwise
    */
-  // protected function getLocalIdByEmail()
-  // {
-  //   $result = $this->connection->query("SELECT ID FROM user WHERE email = {$this->connection->quote($this->email)} LIMIT 1")->fetch();
-  //   
-  //   if ($result && $result['ID']) {
-  //     return $result['ID'];
-  //   }
-  //   
-  //   return null;
-  // }
+  protected function getLocalIdByUid()
+  {
+    $arg = $this->connection->escape_string($this->uid);
+    $query = "SELECT user_id FROM ox_users WHERE mno_uid = '$arg'";
+    $result = $this->connection->query($query);
+    $result = $result->fetch_assoc();
+    
+    if ($result && $result['user_id']) {
+      return $result['user_id'];
+    }
+    
+    return null;
+    
+    return null;
+  }
+  
+  /**
+   * Get the ID of a local user via email lookup
+   *
+   * @return a user ID if found, null otherwise
+   */
+  protected function getLocalIdByEmail()
+  {
+    $arg = $this->connection->escape_string($this->email);
+    $query = "SELECT user_id FROM ox_users WHERE email_address = '$arg'";
+    $result = $this->connection->query($query);
+    $result = $result->fetch_assoc();
+    
+    if ($result && $result['user_id']) {
+      return $result['user_id'];
+    }
+    
+    return null;
+  }
   
   /**
    * Set all 'soft' details on the user (like name, surname, email)
@@ -122,28 +214,42 @@ class MnoSsoUser extends MnoSsoBaseUser
    *
    * @return boolean whether the user was synced or not
    */
-   // protected function syncLocalDetails()
-   // {
-   //   if($this->local_id) {
-   //     $upd = $this->connection->query("UPDATE user SET name = {$this->connection->quote($this->name . ' ' . $this->surname)}, email = {$this->connection->quote($this->email)} WHERE ID = $this->local_id");
-   //     return $upd;
-   //   }
-   //   
-   //   return false;
-   // }
+   protected function syncLocalDetails()
+   {
+     if($this->local_id) {
+       $query = "UPDATE ox_users SET username = ?, email_address = ?, contact_name = ? WHERE user_id = ?";
+       $stmt = $this->connection->prepare($query);
+       $stmt->bind_param("sssi", 
+         $this->uid,
+         $this->email,
+         Array("$this->name $this->surname")[0],
+         $this->local_id);
+       $upd = $stmt->execute();
+       $stmt->close();
+       
+       return $upd;
+     }
+     
+     return false;
+   }
   
   /**
    * Set the Maestrano UID on a local user via id lookup
    *
    * @return a user ID if found, null otherwise
    */
-  // protected function setLocalUid()
-  // {
-  //   if($this->local_id) {
-  //     $upd = $this->connection->query("UPDATE user SET mno_uid = {$this->connection->quote($this->uid)} WHERE ID = $this->local_id");
-  //     return $upd;
-  //   }
-  //   
-  //   return false;
-  // }
+  protected function setLocalUid()
+  {
+    if($this->local_id) {
+      $query = "UPDATE ox_users SET mno_uid = ? WHERE user_id = ?";
+      $stmt = $this->connection->prepare($query);
+      $stmt->bind_param("si", $this->uid, $this->local_id);
+      $upd = $stmt->execute();
+      $stmt->close();
+      
+      return $upd;
+    }
+    
+    return false;
+  }
 }
