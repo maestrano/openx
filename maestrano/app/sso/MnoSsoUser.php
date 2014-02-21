@@ -1,10 +1,5 @@
 <?php
 
-class OA_Permission_User {
-  public $aUser = null;
-  public $aAccount = null;
-}
-
 /**
  * Configure App specific behavior for 
  * Maestrano SSO
@@ -47,7 +42,8 @@ class MnoSsoUser extends MnoSsoBaseUser
     // Cleanup old sessions (older than 10 days)
     $q = "DELETE FROM ox_session WHERE lastused < ?";
     $stmt = $this->connection->prepare($q);
-    $stmt->bind_param('s', Array(date("Y-m-d H:i:s", strtotime('-10 days', time())))[0]);
+    $args = Array('date' => date("Y-m-d H:i:s", strtotime('-10 days', time())));
+    $stmt->bind_param('s', $args['date']);
     $stmt->execute();
     $stmt->close();
     
@@ -68,7 +64,7 @@ class MnoSsoUser extends MnoSsoBaseUser
       $session['lastused'] = date("Y-m-d H:i:s", time());
       $session['id'] = md5(uniqid('phpads', 1));
       
-      $data = new OA_Permission_User;
+      $data = new OA_Permission_User; // mock class defined in auth.php
       $data->aUser = $user;
       $data->aAccount = $account;
       
@@ -91,7 +87,7 @@ class MnoSsoUser extends MnoSsoBaseUser
         
       return true;
     } else {
-        return false;
+      return false;
     }
   }
   
@@ -140,7 +136,6 @@ class MnoSsoUser extends MnoSsoBaseUser
       $stmt->execute();
       $lid = $stmt->insert_id;
       $stmt->close();
-      var_dump($lid);
     }
     
     return $lid;
@@ -185,8 +180,6 @@ class MnoSsoUser extends MnoSsoBaseUser
     }
     
     return null;
-    
-    return null;
   }
   
   /**
@@ -219,10 +212,11 @@ class MnoSsoUser extends MnoSsoBaseUser
      if($this->local_id) {
        $query = "UPDATE ox_users SET username = ?, email_address = ?, contact_name = ? WHERE user_id = ?";
        $stmt = $this->connection->prepare($query);
+       $args = Array('fullname' => "$this->name $this->surname");
        $stmt->bind_param("sssi", 
          $this->uid,
          $this->email,
-         Array("$this->name $this->surname")[0],
+         $args['fullname'],
          $this->local_id);
        $upd = $stmt->execute();
        $stmt->close();

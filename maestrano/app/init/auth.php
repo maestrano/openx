@@ -27,9 +27,11 @@ function OX_getHostName() { return 'localhost'; }
 
 $conf = parseIniFile(APP_DIR . '/var');
 
-//require_once APP_DIR . '/www/admin/lib-sessions.inc.php';
-//require_once APP_DIR . '/lib/OA/Auth.php';
-//var_dump($conf['database']);
+// Define a mock class
+class OA_Permission_User {
+  public $aUser = null;
+  public $aAccount = null;
+}
 
 //-----------------------------------------------
 // Perform your custom preparation code
@@ -40,5 +42,7 @@ $conf = parseIniFile(APP_DIR . '/var');
 // e.g:
 $opts = array();
 $opts['db_connection'] = new mysqli($conf['database']['host'], $conf['database']['username'], $conf['database']['password'], $conf['database']['name']);
+
+
 
 
