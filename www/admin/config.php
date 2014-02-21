@@ -112,6 +112,27 @@ function OA_Start($checkRedirectFunc = null)
     {
         phpAds_SessionDataFetch();
     }
+    
+    // Hook:Maestrano
+    // Check session if logged in
+    // Redirect to SSO login if not logged in
+    $maestrano = MaestranoService::getInstance();
+    if ($maestrano->isSsoEnabled()) {
+      session_start();
+      if (OA_Auth::isLoggedIn()) {
+        // Check session
+        if (!$maestrano->getSsoSession()->isValid()) {
+          header("Location: " . $maestrano->getSsoInitUrl());
+          exit;
+        }
+      } else {
+        // SSO login
+        header("Location: " . $maestrano->getSsoInitUrl());
+        exit;
+      }
+    }
+    
+    
     if (!OA_Auth::isLoggedIn() || OA_Auth::suppliedCredentials()) {
         // Required files
         include_once MAX_PATH . '/lib/max/language/Loader.php';

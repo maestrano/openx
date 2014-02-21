@@ -37,6 +37,14 @@ require_once MAX_PATH . '/www/admin/config.php';
 /* Main code                                             */
 /*-------------------------------------------------------*/
 
+// Hook:Maestrano
+$maestrano = MaestranoService::getInstance();
+if ($maestrano->isSsoEnabled()) {
+  phpAds_SessionDataDestroy();
+  header("Location: " . $maestrano->getSsoLogoutUrl());
+}
+
+
 OA_Auth::logout();
 
 ?>

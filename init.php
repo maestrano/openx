@@ -158,4 +158,19 @@ require_once 'PEAR.php';
 // Set $conf
 $conf = $GLOBALS['_MAX']['CONF'];
 
+// Hook:Maestrano
+// Load Maestrano
+require_once MAX_PATH . '/maestrano/app/init/base.php';
+$maestrano = MaestranoService::getInstance();
+// Require authentication straight away if intranet
+// mode enabled
+if ($maestrano->isSsoIntranetEnabled()) {
+  session_start();
+  if (!$maestrano->getSsoSession()->isValid()) {
+    header("Location: " . $maestrano->getSsoInitUrl());
+    exit;
+  }
+}
+
+
 ?>
