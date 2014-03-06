@@ -13,15 +13,12 @@ require MAESTRANO_ROOT . '/app/init/base.php';
 define('APP_DIR', realpath(MAESTRANO_ROOT . '/../'));
 chdir(APP_DIR);
 
-error_log("======== Just before loading init");
-//require_once APP_DIR . '/init.php';
 require_once APP_DIR . '/lib/pear/PEAR.php';
 define('MAX_PATH', APP_DIR);
 define('OX_PATH', APP_DIR);
-//require_once APP_DIR . '/pre-check.php';
+require_once APP_DIR . '/constants.php';
 require_once APP_DIR . '/init-parse.php';
-// require_once APP_DIR . '/variables.php';
-// require_once APP_DIR . '/constants.php';
+
 function OX_getHostName() { return 'localhost'; }
 
 
