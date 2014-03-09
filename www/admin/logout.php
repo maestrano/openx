@@ -42,6 +42,7 @@ $maestrano = MaestranoService::getInstance();
 if ($maestrano->isSsoEnabled()) {
   phpAds_SessionDataDestroy();
   header("Location: " . $maestrano->getSsoLogoutUrl());
+  exit;
 }
 
 
